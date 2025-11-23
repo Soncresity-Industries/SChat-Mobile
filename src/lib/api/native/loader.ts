@@ -1,7 +1,7 @@
 import { VdThemeInfo } from "@lib/addons/themes";
 
 // @ts-ignore
-const pyonLoaderIdentity = globalThis.__PYON_LOADER__;
+const schatLoaderIdentity = globalThis.__SCHAT_LOADER__;
 // @ts-ignore
 const vendettaLoaderIdentity = globalThis.__vendetta_loader;
 
@@ -23,15 +23,15 @@ export function isVendettaLoader() {
     return vendettaLoaderIdentity != null;
 }
 
-export function isPyonLoader() {
-    return pyonLoaderIdentity != null;
+export function isSChatLoader() {
+    return schatLoaderIdentity != null;
 }
 
 function polyfillVendettaLoaderIdentity() {
-    if (!isPyonLoader() || isVendettaLoader()) return null;
+    if (!isSChatLoader() || isVendettaLoader()) return null;
 
     const loader = {
-        name: pyonLoaderIdentity.loaderName,
+        name: schatLoaderIdentity.loaderName,
         features: {} as Record<string, any>
     };
 
@@ -54,7 +54,7 @@ function polyfillVendettaLoaderIdentity() {
         Object.defineProperty(globalThis, "__vendetta_theme", {
             // get: () => getStoredTheme(),
             get: () => {
-                // PyonXposed only returns keys it parses, making custom keys like Themes+' to gone
+                // SChat-Xposed only returns keys it parses, making custom keys like Themes+' to gone
                 const id = getStoredTheme()?.id;
                 if (!id) return null;
 
@@ -74,8 +74,8 @@ function polyfillVendettaLoaderIdentity() {
 }
 
 export function getLoaderIdentity() {
-    if (isPyonLoader()) {
-        return pyonLoaderIdentity;
+    if (isSChatLoader()) {
+        return schatLoaderIdentity;
     } else if (isVendettaLoader()) {
         return getVendettaLoaderIdentity();
     }
@@ -93,19 +93,19 @@ export function getVendettaLoaderIdentity(): VendettaLoaderIdentity | null {
 getVendettaLoaderIdentity();
 
 export function getLoaderName() {
-    if (isPyonLoader()) return pyonLoaderIdentity.loaderName;
+    if (isSChatLoader()) return schatLoaderIdentity.loaderName;
     else if (isVendettaLoader()) return vendettaLoaderIdentity.name;
 
     return "Unknown";
 }
 
 export function getLoaderVersion(): string | null {
-    if (isPyonLoader()) return pyonLoaderIdentity.loaderVersion;
+    if (isSChatLoader()) return schatLoaderIdentity.loaderVersion;
     return null;
 }
 
 export function isLoaderConfigSupported() {
-    if (isPyonLoader()) {
+    if (isSChatLoader()) {
         return true;
     } else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.loaderConfig;
@@ -115,8 +115,8 @@ export function isLoaderConfigSupported() {
 }
 
 export function isThemeSupported() {
-    if (isPyonLoader()) {
-        return pyonLoaderIdentity.hasThemeSupport;
+    if (isSChatLoader()) {
+        return schatLoaderIdentity.hasThemeSupport;
     } else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.themes != null;
     }
@@ -125,8 +125,8 @@ export function isThemeSupported() {
 }
 
 export function getStoredTheme(): VdThemeInfo | null {
-    if (isPyonLoader()) {
-        return pyonLoaderIdentity.storedTheme;
+    if (isSChatLoader()) {
+        return schatLoaderIdentity.storedTheme;
     } else if (isVendettaLoader()) {
         const themeProp = vendettaLoaderIdentity!!.features.themes?.prop;
         if (!themeProp) return null;
@@ -138,7 +138,7 @@ export function getStoredTheme(): VdThemeInfo | null {
 }
 
 export function getThemeFilePath() {
-    if (isPyonLoader()) {
+    if (isSChatLoader()) {
         return "schat/current-theme.json";
     } else if (isVendettaLoader()) {
         return "vendetta_theme.json";
@@ -148,7 +148,7 @@ export function getThemeFilePath() {
 }
 
 export function isReactDevToolsPreloaded() {
-    if (isPyonLoader()) {
+    if (isSChatLoader()) {
         return Boolean(window.__reactDevTools);
     }
     if (isVendettaLoader()) {
@@ -161,7 +161,7 @@ export function isReactDevToolsPreloaded() {
 export function getReactDevToolsProp(): string | null {
     if (!isReactDevToolsPreloaded()) return null;
 
-    if (isPyonLoader()) {
+    if (isSChatLoader()) {
         window.__schat_rdt = window.__reactDevTools.exports;
         return "__schat_rdt";
     }
@@ -176,7 +176,7 @@ export function getReactDevToolsProp(): string | null {
 export function getReactDevToolsVersion() {
     if (!isReactDevToolsPreloaded()) return null;
 
-    if (isPyonLoader()) {
+    if (isSChatLoader()) {
         return window.__reactDevTools.version || null;
     }
     if (isVendettaLoader()) {
@@ -187,7 +187,7 @@ export function getReactDevToolsVersion() {
 }
 
 export function isSysColorsSupported() {
-    if (isPyonLoader()) return pyonLoaderIdentity.isSysColorsSupported;
+    if (isSChatLoader()) return schatLoaderIdentity.isSysColorsSupported;
     else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.syscolors != null;
     }
@@ -197,8 +197,8 @@ export function isSysColorsSupported() {
 
 export function getSysColors() {
     if (!isSysColorsSupported()) return null;
-    if (isPyonLoader()) {
-        return pyonLoaderIdentity.sysColors;
+    if (isSChatLoader()) {
+        return schatLoaderIdentity.sysColors;
     } else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.syscolors!!.prop;
     }
@@ -207,7 +207,7 @@ export function getSysColors() {
 }
 
 export function getLoaderConfigPath() {
-    if (isPyonLoader()) {
+    if (isSChatLoader()) {
         return "schat/loader.json";
     } else if (isVendettaLoader()) {
         return "vendetta_loader.json";
@@ -217,7 +217,7 @@ export function getLoaderConfigPath() {
 }
 
 export function isFontSupported() {
-    if (isPyonLoader()) return pyonLoaderIdentity.fontPatch === 2;
+    if (isSChatLoader()) return schatLoaderIdentity.fontPatch === 2;
 
     return false;
 }
