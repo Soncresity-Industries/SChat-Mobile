@@ -73,7 +73,13 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
     unpatches.push(after("default", SettingsOverviewScreen, (_, ret) => {
         if (useIsFirstRender()) return; // :shrug:
 
-        const { sections } = findInReactTree(ret, i => i.props?.sections).props;
+        // As of Discord 306.1, SearchableSettingsList no longer receives a flat
+        // `sections` prop directly. The sections array is now wrapped in a `node`
+        // object produced by an internal `createList()` helper, i.e.
+        // props.node = { type: LIST, sections: [...] } instead of props.sections.
+        // We support both shapes so this keeps working on older cached installs too.
+        const target = findInReactTree(ret, i => i.props?.sections || i.props?.node?.sections);
+        const sections = target.props.sections ?? target.props.node.sections;
         // Credit to @palmdevs - https://discord.com/channels/1196075698301968455/1243605828783571024/1307940348378742816
         let index = -~sections.findIndex((i: any) => i.settings.includes("ACCOUNT")) || 1;
 
