@@ -6,8 +6,8 @@ import { after } from "@lib/api/patcher";
 import { settings } from "@lib/api/settings";
 import { logger } from "@lib/utils/logger";
 import { showToast } from "@ui/toasts";
-import { version } from "schat-build-info";
 import { Platform, type PlatformConstants } from "react-native";
+import { version } from "schat-build-info";
 
 export interface RNConstants extends PlatformConstants {
     // Android

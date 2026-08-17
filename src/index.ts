@@ -18,7 +18,7 @@ import * as lib from "./lib";
 
 export default async () => {
     // Load everything in parallel
-    await Promise.all([
+    const initialization = await Promise.allSettled([
         initThemes(),
         injectFluxInterceptor(),
         patchSettings(),
@@ -31,10 +31,18 @@ export default async () => {
         initFixes(),
         patchErrorBoundary(),
         updatePlugins()
-    ]).then(
-        // Push them all to unloader
-        u => u.forEach(f => f && lib.unload.push(f))
-    );
+    ]);
+
+    // A broken optional patch must not prevent the settings, logger, and
+    // recovery UI from starting. Discord changes private modules frequently,
+    // so keep successful initializers and expose failures for diagnosis.
+    initialization.forEach(result => {
+        if (result.status === "fulfilled") {
+            if (result.value) lib.unload.push(result.value);
+        } else {
+            console.error("SChat initializer failed", result.reason);
+        }
+    });
 
     // Assign window object
     window.schat = lib;
