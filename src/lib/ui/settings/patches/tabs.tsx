@@ -1,5 +1,4 @@
 import { after } from "@lib/api/patcher";
-import { findInReactTree } from "@lib/utils";
 import { TableRow } from "@metro/common/components";
 import { findByNameLazy, findByPropsLazy } from "@metro/wrappers";
 import { registeredSections } from "@ui/settings";
@@ -9,10 +8,34 @@ import { CustomPageRenderer, wrapOnPress } from "./shared";
 const settingConstants = findByPropsLazy("SETTING_RENDERER_CONFIG");
 const SettingsOverviewScreen = findByNameLazy("SettingsOverviewScreen", false);
 
-function useIsFirstRender() {
-    let firstRender = false;
-    React.useEffect(() => void (firstRender = true), []);
-    return firstRender;
+function findSettingsSections(root: any): any[] | undefined {
+    const visited = new Set<any>();
+
+    function visit(value: any): any[] | undefined {
+        if (!value || (typeof value !== "object" && typeof value !== "function") || visited.has(value)) return;
+        visited.add(value);
+
+        if (Array.isArray(value)) {
+            if (value.some(section => Array.isArray(section?.settings) && section.settings.includes("ACCOUNT"))) {
+                return value;
+            }
+            for (const item of value) {
+                const result = visit(item);
+                if (result) return result;
+            }
+            return;
+        }
+
+        // Discord has moved this list among several React wrappers. Search the
+        // returned tree for its stable ACCOUNT settings marker instead of a
+        // particular props path.
+        for (const key of Object.keys(value)) {
+            const result = visit(value[key]);
+            if (result) return result;
+        }
+    }
+
+    return visit(root);
 }
 
 export function patchTabsUI(unpatches: (() => void | boolean)[]) {
@@ -32,56 +55,53 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
         })))
         .reduce((a, c) => Object.assign(a, c));
 
-    const origRendererConfig = settingConstants.SETTING_RENDERER_CONFIG;
-    let rendererConfigValue = settingConstants.SETTING_RENDERER_CONFIG;
+    try {
+        const origRendererConfig = settingConstants.SETTING_RENDERER_CONFIG;
+        let rendererConfigValue = settingConstants.SETTING_RENDERER_CONFIG;
 
-    Object.defineProperty(settingConstants, "SETTING_RENDERER_CONFIG", {
-        enumerable: true,
-        configurable: true,
-        get: () => ({
-            ...rendererConfigValue,
-            VendettaCustomPage: {
-                type: "route",
-                title: () => "SChat",
-                screen: {
-                    route: "VendettaCustomPage",
-                    getComponent: () => CustomPageRenderer
-                }
-            },
-            SCHAT_CUSTOM_PAGE: {
-                type: "route",
-                title: () => "SChat",
-                screen: {
-                    route: "SCHAT_CUSTOM_PAGE",
-                    getComponent: () => CustomPageRenderer
-                }
-            },
-            ...getRows()
-        }),
-        set: v => rendererConfigValue = v,
-    });
-
-    unpatches.push(() => {
         Object.defineProperty(settingConstants, "SETTING_RENDERER_CONFIG", {
-            value: origRendererConfig,
-            writable: true,
-            get: undefined,
-            set: undefined
+            enumerable: true,
+            configurable: true,
+            get: () => ({
+                ...rendererConfigValue,
+                VendettaCustomPage: {
+                    type: "route",
+                    title: () => "SChat",
+                    screen: {
+                        route: "VendettaCustomPage",
+                        getComponent: () => CustomPageRenderer
+                    }
+                },
+                SCHAT_CUSTOM_PAGE: {
+                    type: "route",
+                    title: () => "SChat",
+                    screen: {
+                        route: "SCHAT_CUSTOM_PAGE",
+                        getComponent: () => CustomPageRenderer
+                    }
+                },
+                ...getRows()
+            }),
+            set: v => rendererConfigValue = v,
         });
-    });
+
+        unpatches.push(() => {
+            Object.defineProperty(settingConstants, "SETTING_RENDERER_CONFIG", {
+                value: origRendererConfig,
+                writable: true,
+                get: undefined,
+                set: undefined
+            });
+        });
+    } catch (error) {
+        // The category insertion below remains usable if Discord freezes this
+        // object or changes the renderer contract again.
+        console.warn("Unable to patch the settings renderer configuration", error);
+    }
 
     unpatches.push(after("default", SettingsOverviewScreen, (_, ret) => {
-        if (useIsFirstRender()) return; // :shrug:
-
-        // Discord has changed this tree several times. 305 and older expose the
-        // list as props.sections, while 306+ wraps it in props.node.sections.
-        // Do not assume that the first matching tree node exists or that the
-        // SettingsOverviewScreen is only rendered once.
-        const target = findInReactTree(ret, i =>
-            Array.isArray(i?.props?.sections) || Array.isArray(i?.props?.node?.sections)
-        );
-        const sections = target?.props?.sections ?? target?.props?.node?.sections;
-        if (!Array.isArray(sections)) return;
+        const sections = findSettingsSections(ret);
+        if (!sections) return;
 
         const sectionNames = Object.keys(registeredSections);
 

@@ -73,9 +73,23 @@ export function connectToDebugger(url: string) {
  * @internal
  */
 export function patchLogHook() {
+    // Discord's Logger writes through nativeLoggingHook. Forwarding that call
+    // back to Logger without a guard re-enters this hook indefinitely.
+    let isForwardingToDiscord = false;
+
     const unpatch = after("nativeLoggingHook", globalThis, args => {
         if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ message: args[0], level: args[1] }));
-        logger.log(args[0]);
+        if (isForwardingToDiscord) return;
+
+        const level = typeof args[1] === "string" ? args[1].toLowerCase() : "log";
+        const log = logger[level as keyof typeof logger] ?? logger.log;
+
+        isForwardingToDiscord = true;
+        try {
+            log.call(logger, args[0]);
+        } finally {
+            isForwardingToDiscord = false;
+        }
     });
 
     return () => {
