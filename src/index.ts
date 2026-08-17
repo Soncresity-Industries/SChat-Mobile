@@ -18,20 +18,23 @@ import * as lib from "./lib";
 
 export default async () => {
     // Load everything in parallel
-    const initialization = await Promise.allSettled([
-        initThemes(),
-        injectFluxInterceptor(),
-        patchSettings(),
-        patchLogHook(),
-        patchCommands(),
-        patchJsx(),
-        initVendettaObject(),
-        initFetchI18nStrings(),
-        initSettings(),
-        initFixes(),
-        patchErrorBoundary(),
-        updatePlugins()
-    ]);
+    const initializers = [
+        initThemes,
+        injectFluxInterceptor,
+        patchSettings,
+        patchLogHook,
+        patchCommands,
+        patchJsx,
+        initVendettaObject,
+        initFetchI18nStrings,
+        initSettings,
+        initFixes,
+        patchErrorBoundary,
+        updatePlugins
+    ];
+    const initialization = await Promise.allSettled(
+        initializers.map(initializer => Promise.resolve().then(() => initializer()))
+    );
 
     // A broken optional patch must not prevent the settings, logger, and
     // recovery UI from starting. Discord changes private modules frequently,
