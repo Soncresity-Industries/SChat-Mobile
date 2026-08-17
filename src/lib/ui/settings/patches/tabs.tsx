@@ -73,17 +73,40 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
     unpatches.push(after("default", SettingsOverviewScreen, (_, ret) => {
         if (useIsFirstRender()) return; // :shrug:
 
-        // As of Discord 306.1, SearchableSettingsList no longer receives a flat
-        // `sections` prop directly. The sections array is now wrapped in a `node`
-        // object produced by an internal `createList()` helper, i.e.
-        // props.node = { type: LIST, sections: [...] } instead of props.sections.
-        // We support both shapes so this keeps working on older cached installs too.
-        const target = findInReactTree(ret, i => i.props?.sections || i.props?.node?.sections);
-        const sections = target.props.sections ?? target.props.node.sections;
-        // Credit to @palmdevs - https://discord.com/channels/1196075698301968455/1243605828783571024/1307940348378742816
-        let index = -~sections.findIndex((i: any) => i.settings.includes("ACCOUNT")) || 1;
+        // Discord has changed this tree several times. 305 and older expose the
+        // list as props.sections, while 306+ wraps it in props.node.sections.
+        // Do not assume that the first matching tree node exists or that the
+        // SettingsOverviewScreen is only rendered once.
+        const target = findInReactTree(ret, i =>
+            Array.isArray(i?.props?.sections) || Array.isArray(i?.props?.node?.sections)
+        );
+        const sections = target?.props?.sections ?? target?.props?.node?.sections;
+        if (!Array.isArray(sections)) return;
 
-        Object.keys(registeredSections).forEach(sect => {
+        const sectionNames = Object.keys(registeredSections);
+
+        // The same array can be retained between renders. Remove our previous
+        // entries before inserting them again so the category neither duplicates
+        // nor gradually moves through the settings list.
+        for (let i = sections.length - 1; i >= 0; i--) {
+            const settings = sections[i]?.settings;
+            if (
+                sectionNames.includes(sections[i]?.label)
+                || (Array.isArray(settings) && settings.some((key: string) =>
+                    Object.values(registeredSections).some(rows => rows.some(row => row.key === key))
+                ))
+            ) {
+                sections.splice(i, 1);
+            }
+        }
+
+        // Credit to @palmdevs - https://discord.com/channels/1196075698301968455/1243605828783571024/1307940348378742816
+        const accountIndex = sections.findIndex((section: any) =>
+            Array.isArray(section?.settings) && section.settings.includes("ACCOUNT")
+        );
+        let index = accountIndex >= 0 ? accountIndex + 1 : 1;
+
+        sectionNames.forEach(sect => {
             sections.splice(index++, 0, {
                 label: sect,
                 title: sect,
